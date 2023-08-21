@@ -1,0 +1,301 @@
+### READ ME ###
+
+# This base file is setup in the format so that you can decalre all necessary variables
+# to run AMR-Wind in one file, and by running the "base_file_tranform" code you can 
+# generate the needed 3 input files (Spinup, Precursor, and Turbines) to run AMR-Wind.
+
+# The code is divided into three sections: Spinup, Precursor, and Turbines with each 
+# section being defined by a semicolon. Please DO NOT delete these semicolon comments as they
+# provide the premise for transforming the base file. 
+
+# If you wish to run the "Error Checker" code it will ensure the variables the user has
+# defined match with the type declared in the commented brackets. Please DO NOT delete these
+# brackets if you wish to error check your code. 
+
+# Please see the bottom of this file if there is anymore AMR-Wind variables you would like
+# to add to the code. They have been formatted to simply be able to copy and paste the 
+# currently commented out variable into your desired section of the base file.
+
+; Spinup
+
+time.stop_time                           = 7201.0               # Max (simulated) time to evolve (secs) , [real number]
+time.max_step                            = -1                   # Max number of time steps; -1 means termination set by timestamps, [integer]
+time.fixed_dt                            = 0.5                  # Use this constant dt if > 0, [real number]
+time.cfl                                 = 0.95                 # CFL factor, [real number]
+
+time.plot_interval                       = 1800                 # Steps between plot files, [integer]
+time.checkpoint_interval                 = 1800                 # Steps between checkpoint files, [integer]
+
+incflo.physics                           = ABL                  # Actuator, [FreeStream; SyntheticTurbulence; ABL; Actuator; RayleighTaylor; BoussinesqBubble; TaylorGreenVortex] 
+incflo.use_godunov                       = 1                    # [boolean]
+incflo.godunov_type                      = weno_z               # [plm; ppm; ppm_nolim; weno_js; weno_z]
+turbulence.model                         = OneEqKsgsM84         # For neutral ABL, use "Smagorinsky", [Laminar; Smagorinsky; KOmegaSST; OneEqKsgsM84]
+TKE.source_terms                         = KsgsM84Src           # [string] 
+TKE.interpolation                        = PiecewiseConstant    # [string]     
+incflo.gravity                           = 0.  0. -9.81         # Gravitational force (3D), [list of 3 real numbers] (m/s2)
+incflo.density                           = 1.225                # Reference density; make sure this agrees with OpenFAST values, [real number] (kg/m3)
+transport.viscosity                      = 1.0e-5               # [real number] (kg/m*s)
+transport.laminar_prandtl                = 0.7                  # [real number] (dimensionless)
+transport.turbulent_prandtl              = 0.3333               # [real number] (dimensionless)
+
+incflo.verbose                           =   0                  # incflo_level, [integer]
+
+geometry.prob_lo                         = 0.       0.     0.   # Lo corner coordinates, [list of 3 real numbers]
+geometry.prob_hi                         = 2560.  2560.  1280.  # Hi corner coordinates, [list of 3 real numbers]
+amr.n_cell                               = 128 128 64           # Grid cells at coarsest AMRlevel, [list of 3 real numbers]
+amr.max_level                            = 0                    # Max AMR level in hierarchy , [integer]
+geometry.is_periodic                     = 1   1   0            # Periodicity x y z (0/1), [list of 3 integers]
+incflo.delp                              = 0.  0.  0.           # Prescribed (cyclic) pressure gradient, [list of 3 real numbers]
+
+zlo.type                                 = wall_model           # [periodic; pressure_inflow; pressure_outflow; mass_inflow; no_slip_wall; slip_wall; symmetric_wall; wall_model]
+zhi.type                                 = slip_wall            # [periodic; pressure_inflow; pressure_outflow; mass_inflow; no_slip_wall; slip_wall; symmetric_wall; wall_model]
+zhi.temperature_type                     = fixed_gradient       # [fixed_gradient] ??? more options
+zhi.temperature                          = 0.003                # [real number]
+
+ICNS.source_terms                        = BoussinesqBuoyancy CoriolisForcing ABLForcing    # [BoussinesqBuoyancy; CoriolisForcing; ABLForcing; BodyForce; ABLMeanBoussinesq; ActuatorForcing]
+incflo.velocity                          = 10.0 0.0 0.0         # [list of 3 real numbers] (m/s)
+ABLForcing.abl_forcing_height            = 86.5                 # [real number]
+CoriolisForcing.latitude                 = 36.607322            # Southern Great Planes [real number]
+CoriolisForcing.north_vector             = 0.0 1.0 0.0          # [list of 3 real numbers]
+CoriolisForcing.east_vector              = 1.0 0.0 0.0          # [list of 3 real numbers]
+BoussinesqBuoyancy.reference_temperature = 290.0                # [real number]
+ABL.reference_temperature                = 290.0                # [real number]
+ABL.temperature_heights                  = 0.0 600.0 700.0 1700.0       # Make sure the top height here goes above the domain height, [list of 4 real numbers]
+ABL.temperature_values                   = 290.0 290.0 298.0 301.0      # [list of 4 real numbers]
+ABL.perturb_temperature                  = true                 # [boolean]
+ABL.cutoff_height                        = 50.0                 # [real number]
+ABL.perturb_velocity                     = true                 # [boolean]
+ABL.perturb_ref_height                   = 50.0                 # [real number]
+ABL.Uperiods                             = 4.0                  # [real number]
+ABL.Vperiods                             = 4.0                  # [real number]
+ABL.deltaU                               = 1.0                  # [real number]
+ABL.deltaV                               = 1.0                  # [real number]
+ABL.kappa                                = .40                  # [real number]
+ABL.surface_roughness_z0                 = 0.01                 # meters, [real number]
+ABL.surface_temp_flux                    = 0.05                 # Surface temperature flux (K-m/s), [real number]
+
+incflo.post_processing                   = Sampling             # Averaging, [Sampling; KineticEnergy; Enstrophy; Averaging]
+
+sampling.output_frequency                = 900                  # [integer]
+sampling.fields                          = velocity temperature # [list of strings]
+
+sampling.labels                          = xy-domain xz-domain  # [list of strings]
+
+sampling.xy-domain.type                  = PlaneSampler         # [PlaneSampler; LineSampler; LidarSampler; ProbeSampler]
+sampling.xy-domain.num_points            = 256 256              # [list of 2 integers]
+sampling.xy-domain.origin                = 0.0 0.0 86.5         # [list of 3 real numbers]
+sampling.xy-domain.axis1                 = 2550.0 0.0 0.0       # [list of 3 real numbers]    
+sampling.xy-domain.axis2                 = 0.0 2550.0 0.0       # [list of 3 real numbers]   
+sampling.xy-domain.normal                = 0.0 0.0 1.0          # [list of 3 real numbers]        
+sampling.xy-domain.offsets               = -63.45 0.0 63.45     # [list of 3 real numbers]
+
+sampling.xz-domain.type                  = PlaneSampler         # [PlaneSampler; LineSampler; LidarSampler; ProbeSampler]
+sampling.xz-domain.num_points            = 256 128              # [list of 2 integers]
+sampling.xz-domain.origin                = 0.0 1280.0 0.0       # [list of 3 real numbers]
+sampling.xz-domain.axis1                 = 2550.0 0.0 0.0       # [list of 3 real numbers]
+sampling.xz-domain.axis2                 = 0.0 0.0 1270.0       # [list of 3 real numbers]
+
+; Precursor
+
+time.stop_time                           = 7801.0               # Max (simulated) time to evolve (seconds) [real number]
+time.fixed_dt                            = 0.125                # Use this constant dt if > 0 [real number]
+
+time.plot_interval                       = 1200                 # Steps between plot files [integer]
+time.checkpoint_interval                 = 1200                 # Steps between checkpoint files [integer]
+ABL.bndry_file                           = bndry_file.native    # [file name]
+ABL.bndry_io_mode                        = 0                    # 0 = write, 1 = read [boolean]
+ABL.bndry_planes                         = ylo xlo              # [xlo; xhi; ylo; yhi; zlo; zhi]
+ABL.bndry_output_start_time              = 7200.0               # [real number]
+ABL.bndry_var_names                      = velocity temperature tke # [list of strings]
+
+io.restart_file                          = ../spinup/chk14400   # [file path]
+
+incflo.post_processing                   = Sampling Averaging   # [Sampling; KineticEnergy; Enstrophy; Averaging]
+
+sampling.output_frequency                = 8                    # [integer]
+
+sampling.labels                          = xy-domain xz-domain  # [list of strings]
+
+averaging.type                           = TimeAveraging        # [string]
+averaging.labels                         = means stress         # [list of strings]  
+
+averaging.averaging_window               = 60.0                 # [real number]
+averaging.averaging_start_time           = 7200.0               # [real number]
+
+averaging.means.fields                   = velocity             # [string]
+averaging.means.averaging_type           = ReAveraging          # [string]
+
+averaging.stress.fields                  = velocity             # [string]
+averaging.stress.averaging_type          = ReynoldsStress       # [string]
+
+tagging.labels                           = T0_level_0_zone T1_level_0_zone T2_level_0_zone T0_level_1_zone T1_level_1_zone T2_level_1_zone  # [list of strings]
+
+tagging.T0_level_0_zone.type                    = GeometryRefinement    # [string]
+tagging.T0_level_0_zone.shapes                  = T0_level_0_zone       # [string]
+tagging.T0_level_0_zone.level                   = 0                     # [integer]          
+tagging.T0_level_0_zone.T0_level_0_zone.type    = box                   # [string]          
+tagging.T0_level_0_zone.T0_level_0_zone.origin  = 520.0 1040.0 0.0      # -1D, -2D, [list of 3 real numbers]
+tagging.T0_level_0_zone.T0_level_0_zone.xaxis   = 360.0 0.0 0.0         # [list of 3 real numbers]
+tagging.T0_level_0_zone.T0_level_0_zone.yaxis   = 0.0 480.0 0.0         # [list of 3 real numbers]
+tagging.T0_level_0_zone.T0_level_0_zone.zaxis   = 0.0 0.0 360.0         # [list of 3 real numbers]
+
+tagging.T1_level_0_zone.type                    = GeometryRefinement    # [string]
+tagging.T1_level_0_zone.shapes                  = T1_level_0_zone       # [string]
+tagging.T1_level_0_zone.level                   = 0                     # [integer]   
+tagging.T1_level_0_zone.T1_level_0_zone.type    = box                   # [string]
+tagging.T1_level_0_zone.T1_level_0_zone.origin  = 1160.0 1040.0 0.0     # -1D, -2D, [list of 3 real numbers]
+tagging.T1_level_0_zone.T1_level_0_zone.xaxis   = 360.0 0.0 0.0         # [list of 3 real numbers]
+tagging.T1_level_0_zone.T1_level_0_zone.yaxis   = 0.0 480.0 0.0         # [list of 3 real numbers]
+tagging.T1_level_0_zone.T1_level_0_zone.zaxis   = 0.0 0.0 360.0         # [list of 3 real numbers]
+
+tagging.T2_level_0_zone.type                    = GeometryRefinement    # [string]
+tagging.T2_level_0_zone.shapes                  = T2_level_0_zone       # [string] 
+tagging.T2_level_0_zone.level                   = 0                     # [integer]       
+tagging.T2_level_0_zone.T2_level_0_zone.type    = box                   # [string]
+tagging.T2_level_0_zone.T2_level_0_zone.origin  = 1800.0 1040.0 0.0     # -1D, -2D, [list of 3 real numbers]
+tagging.T2_level_0_zone.T2_level_0_zone.xaxis   = 360.0 0.0 0.0         # [list of 3 real numbers]
+tagging.T2_level_0_zone.T2_level_0_zone.yaxis   = 0.0 480.0 0.0         # [list of 3 real numbers]
+tagging.T2_level_0_zone.T2_level_0_zone.zaxis   = 0.0 0.0 360.0         # [list of 3 real numbers]
+
+tagging.T0_level_1_zone.type                    = GeometryRefinement    # [string]
+tagging.T0_level_1_zone.shapes                  = T0_level_1_zone       # [string]
+tagging.T0_level_1_zone.level                   = 1                     # [integer]
+tagging.T0_level_1_zone.T0_level_1_zone.type    = box                   # [string]
+tagging.T0_level_1_zone.T0_level_1_zone.origin  = 580.0 1100.0 20.0     # -0.5D, -1.5D, [list of 3 real numbers]
+tagging.T0_level_1_zone.T0_level_1_zone.xaxis   = 180.0 0.0 0.0         # [list of 3 real numbers]
+tagging.T0_level_1_zone.T0_level_1_zone.yaxis   = 0.0 360.0 0.0         # [list of 3 real numbers]
+tagging.T0_level_1_zone.T0_level_1_zone.zaxis   = 0.0 0.0 180.0         # [list of 3 real numbers]
+
+tagging.T1_level_1_zone.type                    = GeometryRefinement    # [string]
+tagging.T1_level_1_zone.shapes                  = T1_level_1_zone       # [string]
+tagging.T1_level_1_zone.level                   = 1                     # [integer]
+tagging.T1_level_1_zone.T1_level_1_zone.type    = box                   # [string]
+tagging.T1_level_1_zone.T1_level_1_zone.origin  = 1220.0 1100.0 20.0    # -0.5D, -1.5D, [list of 3 real numbers]
+tagging.T1_level_1_zone.T1_level_1_zone.xaxis   = 180.0 0.0 0.0         # [list of 3 real numbers]
+tagging.T1_level_1_zone.T1_level_1_zone.yaxis   = 0.0 360.0 0.0         # [list of 3 real numbers]
+tagging.T1_level_1_zone.T1_level_1_zone.zaxis   = 0.0 0.0 180.0         # [list of 3 real numbers]
+
+tagging.T2_level_1_zone.type                    = GeometryRefinement    # [string]
+tagging.T2_level_1_zone.shapes                  = T2_level_1_zone       # [string]
+tagging.T2_level_1_zone.level                   = 1                     # [integer] 
+tagging.T2_level_1_zone.T2_level_1_zone.type    = box                   # [string] 
+tagging.T2_level_1_zone.T2_level_1_zone.origin  = 1860.0 1100.0 20.0    # -0.5D, -1.5D, [list of 3 real numbers]
+tagging.T2_level_1_zone.T2_level_1_zone.xaxis   = 180.0 0.0 0.0         # [list of 3 real numbers]
+tagging.T2_level_1_zone.T2_level_1_zone.yaxis   = 0.0 360.0 0.0         # [list of 3 real numbers]
+tagging.T2_level_1_zone.T2_level_1_zone.zaxis   = 0.0 0.0 180.0         # [list of 3 real numbers]
+
+; Turbines
+
+ABL.bndry_file                           = ../02_atmosphere/precursor/bndry_file.native # [file path]
+ABL.bndry_io_mode                        = 1                        # 0 = write, 1 = read, [boolean]
+
+amr.max_level                            = 2                        # Max AMR level in hierarchy [integer]
+geometry.is_periodic                     = 0   0   0                # Periodicity x y z (0/1)   [list of 3 booleans]
+
+xlo.type                                 = mass_inflow              # [periodic; pressure_inflow; pressure_outflow; mass_inflow; no_slip_wall; slip_wall; symmetric_wall; wall_model]
+xlo.density                              = 1.225                    # [real number]        
+xlo.temperature                          = 290.0                    # [real number]
+xlo.tke                                  = 0.0                      # [real number]
+xhi.type                                 = pressure_outflow         # [string]
+
+ylo.type                                 = mass_inflow              # [periodic; pressure_inflow; pressure_outflow; mass_inflow; no_slip_wall; slip_wall; symmetric_wall; wall_model]
+ylo.density                              = 1.225                    # [real number]
+ylo.temperature                          = 290.0                    # [real number]
+ylo.tke                                  = 0.0                      # [real number]
+yhi.type                                 = pressure_outflow         # [string]
+
+ICNS.source_terms                        = BoussinesqBuoyancy CoriolisForcing BodyForce ABLMeanBoussinesq ActuatorForcing # [BoussinesqBuoyancy; CoriolisForcing; ABLForcing; BodyForce; ABLMeanBoussinesq; ActuatorForcing]
+
+ABL.wall_shear_stress_type                  = "local"               # [string]
+ABL.inflow_outflow_mode                     = true                  # [boolean]
+ABL.wf_velocity                             = 7.612874161922772 0.05167978610261268 # [list of 2 real numbers]
+ABL.wf_vmag                                 = 7.655337919472146     # [real number]
+ABL.wf_theta                                = 291.0187046202964     # [real number]
+BodyForce.magnitude                         = 0.00034839850789284793 0.0009712494385077595 0.0  # [list of 3 real numbers]
+BoussinesqBuoyancy.read_temperature_profile = true                  # [boolean]
+BoussinesqBuoyancy.tprofile_filename        = avg_theta.dat         # [file name]
+
+Actuator.labels                          = T0 T1 T2                 # [list of strings]
+
+Actuator.T0.type                         = TurbineFastDisk          # [string]
+Actuator.T0.openfast_input_file          = T0_AMRWind_AWAKEN/NREL-2p8-127.fst   # [file path]
+Actuator.T0.base_position                = 640.0 1280.0 0.0         # [list of 3 real numbers]
+Actuator.T0.rotor_diameter               = 126.9                    # [real number]  
+Actuator.T0.hub_height                   = 86.5                     # [real number]      
+Actuator.T0.num_points_blade             = 64                       # [integer]    
+Actuator.T0.num_points_tower             = 12                       # [integer]   
+Actuator.T0.epsilon                      = 5.0 5.0 5.0              # [list of 3 real numbers]  
+Actuator.T0.epsilon_tower                = 5.0 5.0 5.0              # [list of 3 real numbers]  
+Actuator.T0.openfast_start_time          = 0.0                      # [real number] 
+Actuator.T0.openfast_stop_time           = 99999.0                  # [real number]        
+Actuator.T0.nacelle_drag_coeff           = 0.0                      # [real number]             
+Actuator.T0.nacelle_area                 = 0.0                      # [real number]               
+Actuator.T0.yaw                          = 0.0                      # [real number]  
+Actuator.T0.output_frequency             = 10                       # [integer]   
+
+Actuator.T1.type                         = TurbineFastDisk          # [string]
+Actuator.T1.openfast_input_file          = T1_AMRWind_AWAKEN/NREL-2p8-127.fst   # [file path]
+Actuator.T1.base_position                = 1280.0 1280.0 0.0        # [list of 3 real numbers]  
+Actuator.T1.rotor_diameter               = 126.9                    # [real number]   
+Actuator.T1.hub_height                   = 86.5                     # [real number]     
+Actuator.T1.num_points_blade             = 64                       # [integer]        
+Actuator.T1.num_points_tower             = 12                       # [integer]          
+Actuator.T1.epsilon                      = 5.0 5.0 5.0              # [list of 3 real numbers]  
+Actuator.T1.epsilon_tower                = 5.0 5.0 5.0              # [list of 3 real numbers]  
+Actuator.T1.openfast_start_time          = 0.0                      # [real number]     
+Actuator.T1.openfast_stop_time           = 99999.0                  # [real number]        
+Actuator.T1.nacelle_drag_coeff           = 0.0                      # [real number]     
+Actuator.T1.nacelle_area                 = 0.0                      # [real number] 
+Actuator.T1.yaw                          = 0.0                      # [real number] 
+Actuator.T1.output_frequency             = 10                       # [integer]          
+
+Actuator.T2.type                         = TurbineFastDisk          # [string]
+Actuator.T2.openfast_input_file          = T2_AMRWind_AWAKEN/NREL-2p8-127.fst   # [file path]
+Actuator.T2.base_position                = 1920.0 1280.0 0.0        # [list of 3 real numbers]  
+Actuator.T2.rotor_diameter               = 126.9                    # [real number] 
+Actuator.T2.hub_height                   = 86.5                     # [real number] 
+Actuator.T2.num_points_blade             = 64                       # [integer]    
+Actuator.T2.num_points_tower             = 12                       # [integer]    
+Actuator.T2.epsilon                      = 5.0 5.0 5.0              # [list of 3 real numbers]  
+Actuator.T2.epsilon_tower                = 5.0 5.0 5.0              # [list of 3 real numbers]   
+Actuator.T2.openfast_start_time          = 0.0                      # [real number] 
+Actuator.T2.openfast_stop_time           = 99999.0                  # [real number] 
+Actuator.T2.nacelle_drag_coeff           = 0.0                      # [real number] 
+Actuator.T2.nacelle_area                 = 0.0                      # [real number] 
+Actuator.T2.yaw                          = 0.0                      # [real number] 
+Actuator.T2.output_frequency             = 10                       # [integer]   
+
+
+
+
+### Extra variables ###
+
+# time.inital_dt                        = 0.00350434538828147       # only used if fixed_dt < 0 [real number]
+# time.init_shrink                      = 0.1                       # default 0.1 [real number]
+# time.regrid_interval                  = 1                         # if amr.ax_level > 0 -> indicates frequency where mesh is adaptively refined [integer]
+# time.regrid_start                     = 0                         # default 0 = start index upon restart (output files) [integer]
+# time.plot_start                       = 0                         # default 0 = start index upon restart (restart files) [integer]
+# time.use_force_cfl                    = false                     # default = true [boolean]
+
+# io.check_file                         = chk                       # default = "chk"   [string]
+# io.plot_file                          = plt                       # default = "plt"   [string]
+# io.restart_file                       =                           # default = ""      [string]
+
+# incflo.do_initial_proj                = false                     # default = true = performs nodal projection checking initial velocity is divergence-free [boolean]
+# incflo.constant_density               = false                     # default = true = specifies density is constant throughout the simulation [boolean]
+# incflo.use_ppm                        = false                     # default = true; false = less accurate piecewise linear method used [boolean]
+# incflo.godunov_use_forces_in_trans    = true                      # default = false; use_godunov must be true; tells if body forces included in transverse velocity prediction [boolean]
+# incflo.diffusion_type                 = 2                         # default = 2; (0 = explicit diffusion; 1 = Crank-Nicolson; 2 = fully implicit diffusion) [int]
+# incflo.rhoerr                         = 1                         # real number(s); amr.max_level > 0; mesh adaption for density  [real number]
+# incflo.gradrhoerr                     = 1                         # real number(s); amr.max_level > 0; mesh adaption for difference between densities [real number]
+
+# transport.model                       = ConstTransport            # default = ConstTransport [string]
+
+# turbulence.Smagorinsky_coeffs.Cs      = 0.135                     # if using Smagorinsky must include, 0.135 = default [real number]
+
+# amr.max_grid_size                     = 32                        # default = 32, maximum number of cells at level 0 in each grid [integer]
+# amr.blocking_factor                   = 8                         # default = 8, each amr.max_grid_size must be divisible by amr.blocking_factor [integer]
+
+# geometry.prob_hi_physical             = 1250.0 468.75 468.75      # default = geometry.prob_hi, upper corner coordinates of computational domain for a Stretched Mesh [list of 3 real numbers]
+# geometry.mesh_mapping                 = ConstantMap               # default = ConstantMap with scaling_factor = 1.0 1.0 1.0 [string]
+

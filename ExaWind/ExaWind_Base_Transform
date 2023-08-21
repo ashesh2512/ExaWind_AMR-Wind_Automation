@@ -1,0 +1,283 @@
+import yaml
+import copy
+
+output_path = '/Users/srichard/Downloads/'
+base_file_path = "/Users/srichard/Downloads/ExaWind Base File.yml"
+
+def divide_base_file(base_file_path):
+    # Define the section divides
+    amr_wind_divide = "# ---------------------------- AMR-Wind Variables ---------------------------- #"
+    nalu_wind_divide = "# ---------------------------- Nalu-Wind Variables --------------------------- #"
+    extra_divide = "# ---------------------------------------------------------------------------- #\n#                                Extra Variables                               #\n# ---------------------------------------------------------------------------- #"
+
+    try:
+        with open(base_file_path, 'r') as file:
+            content = file.read()
+
+            # Find the indices of the dividing lines
+            amr_wind_idx = content.find(amr_wind_divide)
+            nalu_wind_idx = content.find(nalu_wind_divide)
+            extra_idx = content.find(extra_divide)
+
+            # Check if the divides are found
+            if amr_wind_idx == -1:
+                raise ValueError("AMR-Wind divide not found in the base file.")
+            if nalu_wind_idx == -1:
+                raise ValueError("Nalu-Wind divide not found in the base file.")
+            if extra_idx == -1:
+                raise ValueError("Extra divide not found in the base file.")
+
+            # Calculate the lengths of the dividing lines
+            amr_wind_divide_length = len(amr_wind_divide)
+            nalu_wind_divide_length = len(nalu_wind_divide)
+            extra_divide_length = len(extra_divide)
+
+            # Split the content into three sections
+            amr_wind_section = content[amr_wind_idx + amr_wind_divide_length:nalu_wind_idx].strip()
+            nalu_wind_section = content[nalu_wind_idx + nalu_wind_divide_length:extra_idx].strip()
+            extra_section = content[extra_idx + extra_divide_length:].strip()
+
+            return amr_wind_section, nalu_wind_section, extra_section
+
+    except FileNotFoundError:
+        raise FileNotFoundError(f"The base file '{base_file_path}' not found.")
+    except Exception as e:
+        raise e
+
+# Create the AMR-Wind output
+def amr_yaml_to_inp(yaml_data):
+    try:
+        # Prepare the INP content
+        inp_content = "# AMR-Wind Variables (INP format)\n\n"
+
+        # Recursive function to handle nested structures
+        def write_recursive(data, prefix="", indent=""):
+            nonlocal inp_content
+            for key, value in data.items():
+                full_key = f"{prefix}.{key}" if prefix else key
+                if isinstance(value, dict):
+                    write_recursive(value, full_key, indent)
+                elif isinstance(value, list):
+                    for item in value:
+                        if isinstance(item, dict):
+                            write_recursive(item, full_key, indent)
+                        else:
+                            inp_content += f"{indent}{full_key} = {item}\n"
+                else:
+                    inp_content += f"{indent}{full_key} = {value}\n"
+
+        # Start writing the YAML data in INP format
+        write_recursive(yaml_data)
+        
+        # Find the position to insert the new variable
+        insert_position_velocity = inp_content.find("ConstValue.tke.value")
+
+        # Extract the necessary values
+        incflo_section = yaml_data.get("incflo", [{}])[0]
+        incflo_velocity_value = incflo_section.get("velocity", "")
+        incflo_density_value = incflo_section.get("density", "")
+        ConstValue_section_1 = yaml_data.get("ConstValue", [{}])[0]
+        ConstValue_tke_section = ConstValue_section_1.get("tke", [{}])[0]
+        ConstValue_tke_value = ConstValue_tke_section.get("value", "")
+        ConstValue_section_2 = yaml_data.get("ConstValue", [{}])[1]
+        ConstValue_sdr_section = ConstValue_section_2.get("sdr", [{}])[0]
+        ConstValue_sdr_value = ConstValue_sdr_section.get("value", "")
+
+        # Add variables
+        mass_inflow_prefixes = ["xlo", "xhi", "ylo", "yhi", "zlo", "zhi"]
+        if incflo_velocity_value:
+            const_velocity_line = f"ConstValue.velocity.value = {incflo_velocity_value}\n"
+            inp_content = inp_content[:insert_position_velocity] + const_velocity_line + inp_content[insert_position_velocity:]
+
+        count = -1
+        for prefix in mass_inflow_prefixes:
+            count += 1
+            if prefix in yaml_data:
+                prefix_list = yaml_data[prefix]
+                if prefix_list[0].get("type") == "mass_inflow":
+                    insert_position_xlo = inp_content.find("xhi.type")
+                    insert_position_xhi = inp_content.find("ylo.type")
+                    insert_position_ylo = inp_content.find("yhi.type")
+                    insert_position_yhi = inp_content.find("zlo.type")
+                    insert_position_zlo = inp_content.find("zhi.type")
+                    insert_position_zhi = inp_content.find("amrex.abort_on_out_of_gpu_memory.type")
+                    insert_positions = [insert_position_xlo, insert_position_xhi, insert_position_ylo, insert_position_yhi, insert_position_zlo, insert_position_zhi]
+                    mass_velocity_line = f"{prefix}.velocity = {incflo_velocity_value}\n"
+                    inp_content = inp_content[:insert_positions[count]] + mass_velocity_line + inp_content[insert_positions[count]:]
+                    mass_density_line = f"{prefix}.density = {incflo_density_value}\n"
+                    inp_content = inp_content[:insert_positions[count]] + mass_density_line + inp_content[insert_positions[count]:]
+                    mass_tke_line = f"{prefix}.tke = {ConstValue_tke_value}\n"
+                    inp_content = inp_content[:insert_positions[count]] + mass_tke_line + inp_content[insert_positions[count]:]
+                    mass_sdr_line = f"{prefix}.sdr = {ConstValue_sdr_value}\n"
+                    inp_content = inp_content[:insert_positions[count]] + mass_sdr_line + inp_content[insert_positions[count]:]
+
+        # Save the INP content to a file
+        output_file_path = "amr_wind_variables.inp"
+        with open(output_file_path, 'w') as output_file:
+            output_file.write(inp_content)
+
+        return inp_content
+
+    except Exception as e:
+        raise e
+    
+# Create the Nalu-Wind output
+def update_nalu_wind(input_yaml):
+    # Load the YAML data
+    yaml_data = yaml.safe_load(input_yaml)
+
+    # Create multiple sections for 'linear_solvers' based on 'lin_solvers'
+    lin_solvers = yaml_data['Automation_Information'][0]['lin_solvers']
+    solver_list = [solver.strip() for solver in lin_solvers.split(',')]
+    linear_solvers_sections = []
+
+    for solver_name in solver_list:
+        linear_solver = {
+            'name': solver_name
+        }
+        linear_solver.update(yaml_data['linear_solvers'][0])
+        linear_solvers_sections.append(linear_solver)
+
+    # Update the 'linear_solvers' section
+    yaml_data['linear_solvers'] = linear_solvers_sections
+
+    # Update the 'Time_Integrators' section
+    sim_name = yaml_data['Simulations'][0]['time_integrator']
+    if 'Time_Integrators' in yaml_data:
+        time_integrator = yaml_data['Time_Integrators'][0]['StandardTimeIntegrator']
+        if 'name' not in time_integrator:
+            # Add the 'name' field to 'StandardTimeIntegrator'
+            time_integrator['name'] = sim_name
+        # Rearrange the dictionary to have 'name' as the first key
+        time_integrator_items = list(time_integrator.items())
+        time_integrator.pop('name')
+        time_integrator_reordered = {'name': sim_name}
+        time_integrator_reordered.update(time_integrator_items)
+        yaml_data['Time_Integrators'][0]['StandardTimeIntegrator'] = time_integrator_reordered
+
+    pos_0_value = yaml_data['Automation_Information'][0]['pos_0']
+    # Update the 'realms' section
+    realm_name = yaml_data['Time_Integrators'][0]['StandardTimeIntegrator']
+    realms_name = realm_name['realms'][0]
+    if 'realms' in yaml_data:
+        realm = yaml_data['realms']
+        if 'name' not in realm:
+            # Add the 'name' field to 'realms'
+            realm['name'] = realms_name
+            # Rearrange the 'realms' dictionary to have 'name' as the first key
+            realm_items = list(realm.items())
+            realm.pop('name')
+            realm_reordered = {'name': realms_name}
+            realm_reordered.update(realm_items)
+            yaml_data['realms'] = realm_reordered
+
+            # Add 'mesh_tag_offset' to 'overset_user_data' and move it to the top
+            if 'boundary_conditions' in realm:
+                bc = realm['boundary_conditions'][0]
+                mesh_motion = realm['mesh_motion'][0]
+                if 'overset_user_data' in bc:
+                    overset_user_data = bc['overset_user_data']
+                    overset_user_data['mesh_tag_offset'] = 0
+                    # Rearrange 'overset_user_data' dictionary to have 'mesh_tag_offset' at the top
+                    mesh_tag_offset = overset_user_data.pop('mesh_tag_offset')
+                    overset_user_data_reordered = {'mesh_tag_offset': mesh_tag_offset}
+                    overset_user_data_reordered.update(overset_user_data)
+                    bc['overset_user_data'] = overset_user_data_reordered
+
+                    # Set 'mesh_group.mesh_parts' equal to a copy of 'initial_conditions.target_name'
+                    if 'mesh_group' in overset_user_data and 'mesh_parts' not in overset_user_data['mesh_group']:
+                        mesh_group = overset_user_data['mesh_group'][0]
+                        ic = yaml_data['realms']['initial_conditions'][0]
+                        mesh_group['mesh_parts'] = copy.copy(ic['target_name'])
+
+                    # Set other locations to the copied value
+                    material_properties = realm['material_properties']
+                    material_properties['target_name'] = copy.copy(ic['target_name'])
+
+                    mesh_transformation = realm['mesh_transformation'][0]
+                    mesh_transformation['mesh_parts'] = copy.copy(ic['target_name'])
+
+                    if 'mesh_motion' in mesh_motion and 'mesh_parts' not in mesh_motion:
+                        mesh_motion = realm['mesh_motion'][0]
+                        mesh_motion['mesh_parts'] = copy.copy(ic['target_name'])
+
+                    turbulence_averaging = realm['turbulence_averaging']
+                    specifications = turbulence_averaging['specifications']
+                    for spec in specifications:
+                        if 'target_name' not in spec:
+                            spec['target_name'] = copy.copy(ic['target_name'])
+                    
+                    # Add pos_0_value to realms.mesh_transformation.motion.displacement
+                    mesh_transformation = realm['mesh_transformation'][0]
+                    mesh_transformation_motion = mesh_transformation['motion'][0]
+                    mesh_transformation_motion['displacement'] = pos_0_value
+
+                    # Add pos_0_value to realms.mesh_motion.motion.centroid
+                    mesh_motion = realm['mesh_motion'][0]
+                    mesh_motion_motion = mesh_motion['motion'][0]
+                    mesh_motion_motion['centroid'] = pos_0_value
+
+                    # Add pos_0_value to realms.post_processing.parameters
+                    post_processing = realm['post_processing'][0]
+                    post_processing['parameters'] = pos_0_value
+
+    updated_yaml = yaml.dump(yaml_data, sort_keys=False)
+
+    return updated_yaml
+
+# Generate files using function
+amr_wind, nalu_wind, extra = divide_base_file(base_file_path)
+amr_wind_inp_file = amr_yaml_to_inp(yaml.safe_load(amr_wind))
+nalu_wind_input_file = update_nalu_wind(nalu_wind)
+
+# Save AMR data to file
+output_file_path_amr = f"{output_path}amr_input.inp"
+with open(output_file_path_amr, 'w') as f:
+    f.write(amr_wind_inp_file)
+
+# Extract the positions from Automation_Information
+automation_info = yaml.safe_load(nalu_wind_input_file)['Automation_Information']
+num_turbines = automation_info[0]['num_turbines']
+positions = [automation_info[0][f'pos_{i}'] for i in range(num_turbines)]
+
+# Prepare nalu files to be updated
+yaml_input_data = yaml.safe_load(nalu_wind_input_file)
+realm = yaml_input_data['realms']
+mesh_tag_count = 0
+
+# Delete Automation_Information section
+del yaml_input_data['Automation_Information']
+
+# Generate the specified number of nalu input files
+for position in positions:
+    # Add pos_0_value to realms.mesh_transformation.motion.displacement
+    mesh_transformation = realm['mesh_transformation'][0]
+    mesh_transformation_motion = mesh_transformation['motion'][0]
+    mesh_transformation_motion['displacement'] = position
+
+    # Add pos_0_value to realms.mesh_motion.motion.centroid
+    mesh_motion = realm['mesh_motion'][0]
+    mesh_motion_motion = mesh_motion['motion'][0]
+    mesh_motion_motion['centroid'] = position
+
+    # Add pos_0_value to realms.post_processing.parameters
+    post_processing = realm['post_processing'][0]
+    post_processing['parameters'] = position
+
+    bc = realm['boundary_conditions'][0]
+    overset_user_data = bc['overset_user_data']
+    overset_user_data['mesh_tag_offset'] = mesh_tag_count
+    # Rearrange 'overset_user_data' dictionary to have 'mesh_tag_offset' at the top
+    mesh_tag_offset = overset_user_data.pop('mesh_tag_offset')
+    overset_user_data_reordered = {'mesh_tag_offset': mesh_tag_offset}
+    overset_user_data_reordered.update(overset_user_data)
+    bc['overset_user_data'] = overset_user_data_reordered
+    mesh_tag_count += 1
+
+    # Create new output file
+    updated_yaml_input = yaml.dump(yaml_input_data, sort_keys=False)
+
+    # Save new nalu output file
+    output_file_path = f"{output_path}nalu_input_{mesh_tag_count}.yaml"
+    with open(output_file_path, 'w') as f:
+        f.write(updated_yaml_input)
