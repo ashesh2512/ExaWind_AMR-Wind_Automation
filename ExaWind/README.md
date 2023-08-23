@@ -7,3 +7,7 @@ The base file ("Exawind\_Base\_File.yml") is divided into three sections: AMR-Wi
 Please DO NOT delete these section divide comments as they provide the premise for transforming the base file. The code contained in the "Nonfunctional Error Checker" folder is you guessed it, nonfunctional.
 
 If you wish to understand more about the changes made in the ExaWind base file compared to what you are used to, please see the "Variables" section in the tutorial PDF!
+
+Please see the tutorial file for a more in-depth explanation of the overall idea of how the transformation code works.
+
+This code was developed by myself as a part of an internship with NREL's Wind Energy Science group with mentorship from Ashesh Sharma through the GEM fellowship. Any questions can be direcred to sydrich@stanford.edu as I will no longer access my NREL email.
